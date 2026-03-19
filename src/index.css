@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface: #0f1117;
+    --surface-raised: #171b26;
+    --surface-border: #252a38;
+    --surface-muted: #1e2333;
+    --ink-primary: #e8eaf0;
+    --ink-secondary: #8b92a5;
+    --ink-muted: #4f5669;
+    --accent: #6366f1;
+  }
+
+  * {
+    @apply border-surface-border;
+  }
+
+  body {
+    @apply bg-surface text-ink-primary font-sans antialiased;
+    background-image: radial-gradient(
+      ellipse 80% 60% at 50% -20%,
+      rgba(99, 102, 241, 0.06) 0%,
+      transparent 70%
+    );
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-muted;
+  }
+
+  ::selection {
+    background: rgba(99, 102, 241, 0.3);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium
+           hover:bg-indigo-500 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-ink-secondary text-sm
+           hover:bg-surface-raised hover:text-ink-primary active:scale-95 transition-all duration-150;
+  }
+
+  .card {
+    @apply bg-surface-raised border border-surface-border rounded-xl;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border;
+  }
+
+  .input {
+    @apply w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-sm text-ink-primary
+           placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent
+           transition-colors;
+  }
+
+  .select {
+    @apply w-full bg-surface border border-surface-border rounded-lg px-3 py-2 text-sm text-ink-primary
+           focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-ink-secondary mb-1.5;
+  }
+
+  .skeleton {
+    @apply bg-surface-border rounded animate-pulse;
+  }
+}
