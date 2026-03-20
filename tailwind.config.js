@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
@@ -9,16 +10,17 @@ export default {
       },
       colors: {
         surface: {
-          DEFAULT: "#0f1117",
-          raised: "#171b26",
-          border: "#252a38",
-          muted: "#1e2333",
+          DEFAULT: "var(--color-surface)",
+          raised: "var(--color-surface-raised)",
+          border: "var(--color-surface-border)",
+          muted: "var(--color-surface-muted)",
         },
         ink: {
-          primary: "#e8eaf0",
-          secondary: "#8b92a5",
-          muted: "#4f5669",
+          primary: "var(--color-ink-primary)",
+          secondary: "var(--color-ink-secondary)",
+          muted: "var(--color-ink-muted)",
         },
+        accent: "var(--color-accent)",
         role: {
           nurse: "#3b82f6",
           dietician: "#10b981",
@@ -30,7 +32,6 @@ export default {
           completed: "#10b981",
           upcoming: "#6b7280",
         },
-        accent: "#6366f1",
       },
       animation: {
         "fade-in": "fadeIn 0.2s ease-out",
