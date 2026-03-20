@@ -18,8 +18,8 @@ A production-quality task management board for dialysis centre staff. Nurses, di
 git clone https://github.com/Yasaswi1357/TaskBoard.git
 cd TaskBoard
 
-# 2. Generate MSW service worker (once)
-npx msw init public/ --save
+# 2. Install
+npm install
 
 # 3. Run
 npm run dev
