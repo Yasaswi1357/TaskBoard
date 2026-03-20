@@ -15,25 +15,20 @@ interface CreateTaskModalProps {
 
 const ROLES: StaffRole[] = ["nurse", "dietician", "social_worker"];
 const CATEGORIES: TaskCategory[] = [
-  "lab_work",
-  "access_check",
-  "diet_counselling",
-  "vaccination",
-  "social_work",
-  "medication_review",
-  "vitals",
-  "general",
+  "lab_work", "access_check", "diet_counselling", "vaccination",
+  "social_work", "medication_review", "vitals", "general",
 ];
 
 const tomorrow = () => {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   d.setHours(9, 0, 0, 0);
-  return d.toISOString().slice(0, 16); // for datetime-local input
+  return d.toISOString().slice(0, 16);
 };
 
 interface FormErrors {
   title?: string;
+  assigneeName?: string;
   dueDate?: string;
 }
 
@@ -48,6 +43,7 @@ export function CreateTaskModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedRole, setAssignedRole] = useState<StaffRole>("nurse");
+  const [assigneeName, setAssigneeName] = useState("");   // ← person in charge
   const [category, setCategory] = useState<TaskCategory>("general");
   const [dueDate, setDueDate] = useState(tomorrow());
   const [notes, setNotes] = useState("");
@@ -56,6 +52,7 @@ export function CreateTaskModal({
   function validate(): boolean {
     const next: FormErrors = {};
     if (!title.trim()) next.title = "Title is required.";
+    if (!assigneeName.trim()) next.assigneeName = "Person in charge is required.";
     if (!dueDate) next.dueDate = "Due date is required.";
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -64,12 +61,12 @@ export function CreateTaskModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-
     onSubmit({
       patientId,
       title: title.trim(),
       description: description.trim() || undefined,
       assignedRole,
+      assigneeName: assigneeName.trim(),
       category,
       dueDate: new Date(dueDate).toISOString(),
       notes: notes.trim() || undefined,
@@ -81,6 +78,7 @@ export function CreateTaskModal({
     setTitle("");
     setDescription("");
     setAssignedRole("nurse");
+    setAssigneeName("");
     setCategory("general");
     setDueDate(tomorrow());
     setNotes("");
@@ -108,10 +106,9 @@ export function CreateTaskModal({
             placeholder="e.g. Monthly CBC & BMP"
             className="input"
             autoFocus
-            aria-describedby={errors.title ? "title-error" : undefined}
           />
           {errors.title && (
-            <p id="title-error" className="text-red-400 text-xs mt-1">{errors.title}</p>
+            <p className="text-red-400 text-xs mt-1">{errors.title}</p>
           )}
         </div>
 
@@ -128,7 +125,7 @@ export function CreateTaskModal({
           />
         </div>
 
-        {/* Role + Category */}
+        {/* Role + Person in charge */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label" htmlFor="task-role">Assigned role</label>
@@ -143,19 +140,42 @@ export function CreateTaskModal({
               ))}
             </select>
           </div>
+
           <div>
-            <label className="label" htmlFor="task-category">Category</label>
-            <select
-              id="task-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as TaskCategory)}
-              className="select"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
-              ))}
-            </select>
+            <label className="label" htmlFor="task-assignee">
+              Person in charge <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="task-assignee"
+              type="text"
+              value={assigneeName}
+              onChange={(e) => {
+                setAssigneeName(e.target.value);
+                if (errors.assigneeName)
+                  setErrors((p) => ({ ...p, assigneeName: undefined }));
+              }}
+              placeholder="e.g. Grace Nair"
+              className="input"
+            />
+            {errors.assigneeName && (
+              <p className="text-red-400 text-xs mt-1">{errors.assigneeName}</p>
+            )}
           </div>
+        </div>
+
+        {/* Category */}
+        <div>
+          <label className="label" htmlFor="task-category">Category</label>
+          <select
+            id="task-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as TaskCategory)}
+            className="select"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+            ))}
+          </select>
         </div>
 
         {/* Due date */}
@@ -172,10 +192,9 @@ export function CreateTaskModal({
               if (errors.dueDate) setErrors((p) => ({ ...p, dueDate: undefined }));
             }}
             className="input"
-            aria-describedby={errors.dueDate ? "date-error" : undefined}
           />
           {errors.dueDate && (
-            <p id="date-error" className="text-red-400 text-xs mt-1">{errors.dueDate}</p>
+            <p className="text-red-400 text-xs mt-1">{errors.dueDate}</p>
           )}
         </div>
 

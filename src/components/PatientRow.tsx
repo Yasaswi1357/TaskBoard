@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { clsx } from "clsx";
-import { ChevronDown, Plus, AlertTriangle, User } from "lucide-react";
-import type { SafePatient, SafeTask, TaskStatus } from "../types";
+import { ChevronDown, Plus, AlertTriangle, User, SearchX } from "lucide-react";
+import type { SafePatient, SafeTask, TaskStatus, FilterState } from "../types";
 import { usePatientTasks, useUpdateTask, useCreateTask } from "../hooks/useTasks";
 import { TaskCard } from "./TaskCard";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { TaskCardSkeleton, ErrorState } from "./ui/Feedback";
 import { STATUS_COLUMNS, STATUS_LABELS, STATUS_DOT } from "../config/constants";
-import type { FilterState } from "../types";
 
 interface PatientRowProps {
   patient: SafePatient;
   filters: FilterState;
+  searchTerm: string;
+  matchingTaskCount: number | null;  // null = not yet loaded
+  filtersActive: boolean;
 }
 
 function getInitials(name: string): string {
@@ -23,7 +25,13 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function PatientRow({ patient, filters }: PatientRowProps) {
+export function PatientRow({
+  patient,
+  filters,
+  searchTerm,
+  matchingTaskCount,
+  filtersActive,
+}: PatientRowProps) {
   const [expanded, setExpanded] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -31,8 +39,8 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
   const updateMutation = useUpdateTask(patient.id);
   const createMutation = useCreateTask(patient.id);
 
-  // Re-filter using the shared filter state from parent
-  const tasks = (allTasks ?? []).filter((task) => {
+  // Apply role + time filters
+  const filtered = (allTasks ?? []).filter((task) => {
     if (filters.role !== "all" && task.assignedRole !== filters.role) return false;
     if (filters.time === "overdue" && task.status !== "overdue") return false;
     if (filters.time === "due_today") {
@@ -43,10 +51,26 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
     return true;
   });
 
+  // Apply search filter on task titles
+  // If the patient name / MRN matches the search → show all (role/time filtered) tasks
+  // Otherwise → only show tasks whose title matches search
+  const patientNameMatch =
+    searchTerm &&
+    (patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.mrn.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const tasks: SafeTask[] = searchTerm && !patientNameMatch
+    ? filtered.filter((t) =>
+        t.title.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : filtered;
+
   const overdueCount = (allTasks ?? []).filter((t) => t.status === "overdue").length;
   const hasOverdue = overdueCount > 0;
 
-  // Group tasks by status column
+  // Dim patients with 0 matching tasks when filters/search are active
+  const isDimmed = filtersActive && matchingTaskCount === 0;
+
   const byStatus = STATUS_COLUMNS.reduce<Record<TaskStatus, SafeTask[]>>(
     (acc, status) => {
       acc[status] = tasks.filter((t) => t.status === status);
@@ -63,8 +87,9 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
     <div
       data-testid={`patient-row-${patient.id}`}
       className={clsx(
-        "card overflow-hidden transition-all duration-200",
-        hasOverdue && "ring-1 ring-red-500/20"
+        "card overflow-hidden transition-all duration-300",
+        hasOverdue && !isDimmed && "ring-1 ring-red-500/20",
+        isDimmed && "opacity-40"
       )}
     >
       {/* Patient header */}
@@ -77,9 +102,7 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
         <div
           className={clsx(
             "w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-            hasOverdue
-              ? "bg-red-500/20 text-red-400"
-              : "bg-accent/20 text-accent"
+            hasOverdue ? "bg-red-500/20 text-red-400" : "bg-accent/20 text-accent"
           )}
         >
           {getInitials(patient.name)}
@@ -87,7 +110,7 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
 
         {/* Info */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-ink-primary text-sm truncate">
               {patient.name}
             </span>
@@ -95,6 +118,12 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
               <span className="flex items-center gap-1 text-xs text-red-400 shrink-0">
                 <AlertTriangle size={11} />
                 {overdueCount} overdue
+              </span>
+            )}
+            {isDimmed && (
+              <span className="flex items-center gap-1 text-xs text-ink-muted shrink-0">
+                <SearchX size={11} />
+                no matching tasks
               </span>
             )}
           </div>
@@ -120,10 +149,7 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
           ))}
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setCreateOpen(true);
-            }}
+            onClick={(e) => { e.stopPropagation(); setCreateOpen(true); }}
             className="btn-ghost p-1.5 ml-1"
             aria-label={`Add task for ${patient.name}`}
             title="Add task"
@@ -161,7 +187,9 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
 
           {!isLoading && !isError && tasks.length === 0 && (
             <div className="py-8 text-center text-ink-muted text-sm">
-              No tasks match the current filters.
+              {filtersActive
+                ? "No tasks match the current filters or search."
+                : "No tasks yet. Click + to add one."}
             </div>
           )}
 
@@ -169,7 +197,6 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 divide-x divide-surface-border">
               {STATUS_COLUMNS.map((status) => (
                 <div key={status} className="p-3 space-y-2 min-h-[80px]">
-                  {/* Column header */}
                   <div className="flex items-center gap-1.5 mb-2">
                     <span className={clsx("w-1.5 h-1.5 rounded-full", STATUS_DOT[status])} />
                     <span className="text-xs font-medium text-ink-muted uppercase tracking-wide">
@@ -181,7 +208,9 @@ export function PatientRow({ patient, filters }: PatientRowProps) {
                   </div>
 
                   {byStatus[status].length === 0 ? (
-                    <div className="text-xs text-ink-muted/50 py-2 text-center">—</div>
+                    <div className="text-xs text-ink-muted/40 py-2 text-center">
+                      {status === "completed" ? "None yet ✓" : "—"}
+                    </div>
                   ) : (
                     byStatus[status].map((task) => (
                       <TaskCard
