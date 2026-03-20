@@ -1,16 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { tasksApi } from "../api/client";
-import { toSafeTask, type SafeTask, type UpdateTaskPayload, type CreateTaskPayload } from "../types";
+import {
+  toSafeTask,
+  type SafeTask,
+  type UpdateTaskPayload,
+  type CreateTaskPayload,
+} from "../types";
 import { QUERY_STALE_TIME, QUERY_RETRY_COUNT } from "../config/constants";
 
-// ─── Query key factory ────────────────────────────────────────────────────────
 export const taskKeys = {
   all: ["tasks"] as const,
   patient: (patientId: string) => ["tasks", patientId] as const,
 };
 
-// ─── Fetch tasks for one patient ──────────────────────────────────────────────
 export function usePatientTasks(patientId: string) {
   return useQuery<SafeTask[]>({
     queryKey: taskKeys.patient(patientId),
@@ -23,15 +26,14 @@ export function usePatientTasks(patientId: string) {
   });
 }
 
-// ─── Create task ──────────────────────────────────────────────────────────────
 export function useCreateTask(patientId: string) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (payload: CreateTaskPayload) =>
-      tasksApi.create(patientId, payload),
+    mutationFn: (payload: CreateTaskPayload) => tasksApi.create(patientId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.patient(patientId) });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
       toast.success("Task created.");
     },
     onError: () => {
@@ -40,55 +42,35 @@ export function useCreateTask(patientId: string) {
   });
 }
 
-// ─── Update task status — with optimistic update & rollback ──────────────────
 export function useUpdateTask(patientId: string) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: ({
-      taskId,
-      payload,
-    }: {
-      taskId: string;
-      payload: UpdateTaskPayload;
-    }) => tasksApi.update(taskId, payload),
+    mutationFn: ({ taskId, payload }: { taskId: string; payload: UpdateTaskPayload }) =>
+      tasksApi.update(taskId, payload),
 
-    /**
-     * Optimistically apply the update before the server responds.
-     * We snapshot the previous cache so we can roll back on failure.
-     */
     onMutate: async ({ taskId, payload }) => {
-      // Cancel any in-flight refetches for this patient's tasks
       await queryClient.cancelQueries({ queryKey: taskKeys.patient(patientId) });
+      const previous = queryClient.getQueryData<SafeTask[]>(taskKeys.patient(patientId));
 
-      // Snapshot previous value
-      const previous = queryClient.getQueryData<SafeTask[]>(
-        taskKeys.patient(patientId)
-      );
-
-      // Apply optimistic update
-      queryClient.setQueryData<SafeTask[]>(
-        taskKeys.patient(patientId),
-        (old) =>
-          (old ?? []).map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  ...payload,
-                  completedAt:
-                    payload.status === "completed"
-                      ? new Date().toISOString()
-                      : task.completedAt,
-                }
-              : task
-          )
+      queryClient.setQueryData<SafeTask[]>(taskKeys.patient(patientId), (old) =>
+        (old ?? []).map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                ...payload,
+                completedAt:
+                  payload.status === "completed"
+                    ? new Date().toISOString()
+                    : task.completedAt,
+              }
+            : task
+        )
       );
 
       return { previous };
     },
 
     onError: (_err, _vars, context) => {
-      // Roll back to previous cache state
       if (context?.previous) {
         queryClient.setQueryData(taskKeys.patient(patientId), context.previous);
       }
@@ -100,8 +82,9 @@ export function useUpdateTask(patientId: string) {
     },
 
     onSettled: () => {
-      // Always re-sync with server after mutation settles
       queryClient.invalidateQueries({ queryKey: taskKeys.patient(patientId) });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["summary"] });
     },
   });
 }
