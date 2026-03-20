@@ -248,8 +248,7 @@ No component changes needed — all components derive behaviour from config.
 ```
 upcoming  → in_progress → completed
 overdue   → in_progress → completed
-overdue   →              completed   (direct close)
-completed → upcoming               (re-open)
+overdue   →               completed   (direct close)
 ```
 
 Tasks already `in_progress` are not auto-marked `overdue` at render time — a nurse who started a task late should not see it flip back to overdue. The `overdue` status is set by the backend or during data ingestion.
